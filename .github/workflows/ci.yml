@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # CI 构建时提供一个占位鉴权密钥（仅用于编译/测试，非真实密钥）。
+  AI_POCKET_AUTH_SECRET: ci-placeholder-secret
+
+jobs:
+  build:
+    name: fmt / clippy / test / build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # NOTE: 发布后 ai-pocket-core / ai-pocket-transport 改为锁定版 git 依赖；
+        # 当前 polyrepo 开发期它们由 sibling 仓 external/core 提供 path 依赖，
+        # 单仓 CI 无法解析。届时需在 umbrella CI 聚合 checkout，或保留为发布期 git tag。
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85"
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo test --all-features
+
+      - name: Build
+        run: cargo build --release
